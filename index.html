@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.3; }
+        }
+        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        @keyframes wave {
+            0%, 100% { height: 8px; }
+            50% { height: 24px; }
+        }
+        .wave-bar { animation: wave 1s ease-in-out infinite; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-enter { animation: fadeIn 0.3s ease-out; }
+        
+        .typing-indicator span {
+            animation: wave 1.4s ease-in-out infinite;
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            margin: 0 2px;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+    <div class="container mx-auto p-4 h-screen flex items-center justify-center">
+        <div class="w-full max-w-5xl h-[95vh] bg-gradient-to-br from-slate-800/40 to-purple-900/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
+            
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-purple-600/20 to-blue-600/20 p-6 border-b border-white/10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-white">AI Voice Assistant</h1>
+                            <p class="text-purple-300 text-sm">LangGraph • Llama3.2 • IBM Watson</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <!-- Mode Toggle -->
+                        <div class="flex items-center gap-2 bg-black/20 rounded-full p-1">
+                            <button id="voiceModeBtn" class="px-4 py-2 rounded-full text-sm font-medium transition-all bg-purple-500 text-white">
+                                🎤 Voice
+                            </button>
+                            <button id="textModeBtn" class="px-4 py-2 rounded-full text-sm font-medium transition-all text-white/70 hover:text-white">
+                                ⌨️ Text
+                            </button>
+                        </div>
+                        
+                        <!-- Audio Toggle -->
+                        <button id="muteBtn" class="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all">
+                            <svg id="volumeIcon" class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            </svg>
+                        </button>
+                        
+                        <!-- Clear Button -->
+                        <button id="clearBtn" class="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="px-6 py-3 bg-black/20 border-b border-white/10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div id="statusDot" class="w-2.5 h-2.5 rounded-full bg-green-400 shadow-lg shadow-green-400/50"></div>
+                        <span id="statusText" class="text-white text-sm font-medium">Ready</span>
+                        <span id="toolIndicator" class="hidden text-xs text-purple-300 bg-purple-500/20 px-2 py-1 rounded-full">🔧 Using tools...</span>
+                    </div>
+                    <div id="waveform" class="hidden flex gap-1">
+                        <div class="w-1 bg-blue-400 rounded-full wave-bar" style="animation-delay: 0s; height: 12px;"></div>
+                        <div class="w-1 bg-blue-400 rounded-full wave-bar" style="animation-delay: 0.1s; height: 16px;"></div>
+                        <div class="w-1 bg-blue-400 rounded-full wave-bar" style="animation-delay: 0.2s; height: 20px;"></div>
+                        <div class="w-1 bg-blue-400 rounded-full wave-bar" style="animation-delay: 0.3s; height: 16px;"></div>
+                        <div class="w-1 bg-blue-400 rounded-full wave-bar" style="animation-delay: 0.4s; height: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="messagesArea" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
+                <div id="emptyState" class="h-full flex flex-col items-center justify-center text-center">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full blur-xl opacity-50"></div>
+                        <div class="relative w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-6">
+                            <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h2 class="text-3xl font-bold text-white mb-3">Ready to Assist</h2>
+                    <p class="text-purple-200 text-lg mb-6">Click the microphone to start a conversation</p>
+                    <div class="flex gap-4 text-sm text-purple-300">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Web Search</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+                            <span>Wikipedia</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-purple-400 rounded-full"></div>
+                            <span>Voice Mode</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="messagesList"></div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-6 bg-black/20 border-t border-white/10">
+                <!-- Voice Mode Controls -->
+                <div id="voiceControls" class="flex flex-col items-center gap-4">
+                    <button id="micBtn" class="group relative w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95">
+                        <div id="pulseRing" class="hidden absolute inset-0 bg-purple-400 rounded-full pulse-ring"></div>
+                        <svg id="micIcon" class="w-10 h-10 text-white mx-auto relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </button>
+                    <p id="micText" class="text-white/70 text-sm">Click microphone to speak</p>
+                </div>
+                
+                <!-- Text Mode Controls -->
+                <div id="textControls" class="hidden flex gap-3">
+                    <input 
+                        type="text" 
+                        id="textInput" 
+                        placeholder="Type your message..." 
+                        class="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <button id="sendBtn" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-xl text-white font-medium transition-all transform hover:scale-105 active:scale-95">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mode = 'voice';
+        let isListening = false;
+        let isProcessing = false;
+        let isMuted = false;
+        let sessionId = 'session_' + Date.now();
+        
+        const messagesArea = document.getElementById('messagesArea');
+        const messagesList = document.getElementById('messagesList');
+        const emptyState = document.getElementById('emptyState');
+        const micBtn = document.getElementById('micBtn');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const waveform = document.getElementById('waveform');
+        const pulseRing = document.getElementById('pulseRing');
+        const micText = document.getElementById('micText');
+        const toolIndicator = document.getElementById('toolIndicator');
+        
+        const voiceControls = document.getElementById('voiceControls');
+        const textControls = document.getElementById('textControls');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        const voiceModeBtn = document.getElementById('voiceModeBtn');
+        const textModeBtn = document.getElementById('textModeBtn');
+        
+        function setStatus(status, color = 'green') {
+            statusText.textContent = status;
+            const colors = {
+                'green': 'bg-green-400 shadow-green-400/50',
+                'blue': 'bg-blue-400 shadow-blue-400/50 animate-pulse',
+                'yellow': 'bg-yellow-400 shadow-yellow-400/50 animate-pulse',
+                'purple': 'bg-purple-400 shadow-purple-400/50 animate-pulse',
+                'red': 'bg-red-400 shadow-red-400/50'
+            };
+            statusDot.className = `w-2.5 h-2.5 rounded-full shadow-lg ${colors[color] || colors['green']}`;
+        }
+        
+        function addMessage(type, text, isStreaming = false) {
+            emptyState.classList.add('hidden');
+            
+            if (isStreaming && messagesList.lastElementChild?.dataset.streaming === 'true') {
+                // Update existing streaming message
+                const msgDiv = messagesList.lastElementChild;
+                const textEl = msgDiv.querySelector('.message-text');
+                textEl.textContent = text;
+                return msgDiv;
+            }
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${type === 'user' ? 'justify-end' : 'justify-start'} message-enter`;
+            messageDiv.dataset.streaming = isStreaming ? 'true' : 'false';
+            
+            messageDiv.innerHTML = `
+                <div class="max-w-[75%] rounded-2xl p-4 ${
+                    type === 'user'
+                        ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30'
+                        : 'bg-white/10 text-white backdrop-blur-sm border border-white/10'
+                }">
+                    <p class="text-sm leading-relaxed message-text">${text}</p>
+                    ${!isStreaming ? `<p class="text-xs mt-2 opacity-60">${time}</p>` : ''}
+                </div>
+            `;
+            
+            messagesList.appendChild(messageDiv);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+            return messageDiv;
+        }
+        
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.className = 'flex justify-start message-enter';
+            typingDiv.innerHTML = `
+                <div class="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                    <div class="typing-indicator text-purple-300">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            messagesList.appendChild(typingDiv);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+        
+        async function startListening() {
+            if (isProcessing) return;
+            
+            isListening = true;
+            isProcessing = true;
+            setStatus('Listening...', 'blue');
+            micText.textContent = 'Listening... Speak now';
+            waveform.classList.remove('hidden');
+            pulseRing.classList.remove('hidden');
+            micBtn.classList.remove('from-purple-500', 'to-blue-500');
+            micBtn.classList.add('from-red-500', 'to-pink-500');
+            
+            try {
+                const response = await fetch('/api/listen', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.text) {
+                    addMessage('user', data.text);
+                    await processMessage(data.text);
+                } else {
+                    setStatus('No speech detected', 'red');
+                    setTimeout(() => setStatus('Ready', 'green'), 2000);
+                }
+            } catch (error) {
+                console.error('Listen error:', error);
+                setStatus('Error: ' + error.message, 'red');
+                setTimeout(() => setStatus('Ready', 'green'), 2000);
+            } finally {
+                stopListening();
+            }
+        }
+        
+        function stopListening() {
+            isListening = false;
+            isProcessing = false;
+            waveform.classList.add('hidden');
+            pulseRing.classList.add('hidden');
+            micBtn.classList.remove('from-red-500', 'to-pink-500');
+            micBtn.classList.add('from-purple-500', 'to-blue-500');
+            micText.textContent = 'Click microphone to speak';
+        }
+        
+        async function processMessage(userInput) {
+            setStatus('Thinking...', 'yellow');
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userInput,
+                        session_id: sessionId
+                    })
+                });
+                
+                const data = await response.json();
+                hideTypingIndicator();
+                
+                if (data.success && data.response) {
+                    addMessage('bot', data.response);
+                    
+                    if (!isMuted && mode === 'voice') {
+                        setStatus('Speaking...', 'purple');
+                        await speakText(data.response);
+                    }
+                    
+                    setStatus('Ready', 'green');
+                } else {
+                    setStatus('Error: ' + (data.error || 'Unknown'), 'red');
+                    setTimeout(() => setStatus('Ready', 'green'), 2000);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('Process error:', error);
+                setStatus('Error: ' + error.message, 'red');
+                setTimeout(() => setStatus('Ready', 'green'), 2000);
+            }
+        }
+        
+        async function speakText(text) {
+            try {
+                await fetch('/api/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                // Estimate speaking time
+                const words = text.split(' ').length;
+                const estimatedTime = (words / 2.5) * 1000; // ~150 wpm
+                
+                await new Promise(resolve => setTimeout(resolve, Math.min(estimatedTime, 5000)));
+            } catch (error) {
+                console.error('Speak error:', error);
+            }
+        }
+        
+        function switchMode(newMode) {
+            mode = newMode;
+            
+            if (mode === 'voice') {
+                voiceControls.classList.remove('hidden');
+                textControls.classList.add('hidden');
+                voiceModeBtn.classList.add('bg-purple-500', 'text-white');
+                voiceModeBtn.classList.remove('text-white/70');
+                textModeBtn.classList.remove('bg-purple-500', 'text-white');
+                textModeBtn.classList.add('text-white/70');
+            } else {
+                voiceControls.classList.add('hidden');
+                textControls.classList.remove('hidden');
+                textModeBtn.classList.add('bg-purple-500', 'text-white');
+                textModeBtn.classList.remove('text-white/70');
+                voiceModeBtn.classList.remove('bg-purple-500', 'text-white');
+                voiceModeBtn.classList.add('text-white/70');
+                textInput.focus();
+            }
+        }
+        
+        // Event Listeners
+        micBtn.addEventListener('click', () => {
+            if (!isListening && !isProcessing) {
+                startListening();
+            }
+        });
+        
+        voiceModeBtn.addEventListener('click', () => switchMode('voice'));
+        textModeBtn.addEventListener('click', () => switchMode('text'));
+        
+        sendBtn.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (text && !isProcessing) {
+                textInput.value = '';
+                addMessage('user', text);
+                await processMessage(text);
+            }
+        });
+        
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !isProcessing) {
+                sendBtn.click();
+            }
+        });
+        
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if (confirm('Clear conversation history?')) {
+                messagesList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                
+                await fetch('/api/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+            }
+        });
+        
+        document.getElementById('muteBtn').addEventListener('click', () => {
+            isMuted = !isMuted;
+            const icon = document.getElementById('volumeIcon');
+            if (isMuted) {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>';
+            } else {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>';
+            }
+        });
+    </script>
+
+</body>
+</html>
